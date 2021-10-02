@@ -194,7 +194,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
 }
 
 pub fn main() -> GameResult {
-    let resource_dir = path::PathBuf::from(".././resources");
+    let resource_dir = path::PathBuf::from("./resources");
 
     let context_builder = ggez::ContextBuilder::new("schack", "eskil")
         .add_resource_path(resource_dir) // Import image files to GGEZ
