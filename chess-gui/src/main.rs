@@ -1,7 +1,7 @@
 use eliasfl_chess::{Color as Colour, Game, GameState, Piece as PieceType, Position};
 use ggez::event;
 use ggez::event::MouseButton;
-use ggez::graphics::{self, Color, DrawMode, DrawParam};
+use ggez::graphics::{self, Color, DrawParam};
 use ggez::{Context, GameResult};
 use std::collections::HashMap;
 use std::path;
@@ -13,7 +13,7 @@ const GRID_CELL_SIZE: (i16, i16) = (45, 45);
 
 /// Size of the application window.
 const SCREEN_SIZE: (f32, f32) = (
-    (GRID_SIZE.0 + 5) as f32 * GRID_CELL_SIZE.0 as f32,
+    (GRID_SIZE.0 + 10) as f32 * GRID_CELL_SIZE.0 as f32,
     GRID_SIZE.1 as f32 * GRID_CELL_SIZE.1 as f32,
 );
 
@@ -26,7 +26,7 @@ const MOVABLE_TILE: Color = Color::new(209.0 / 255.0, 62.0 / 255.0, 29.0 / 255.0
 /// GUI logic and event implementation structure.
 struct AppState {
     sprites: HashMap<PieceType, graphics::Image>,
-    board: Game,
+    game: Game,
     selected_tile: Option<Position>,
     highlighted_tiles: Vec<Position>,
 }
@@ -36,7 +36,7 @@ impl AppState {
     fn new(ctx: &mut Context) -> GameResult<AppState> {
         let sprites = AppState::load_sprites();
         let mut loaded_sprites: HashMap<PieceType, graphics::Image> = Default::default();
-        let board = Game::new();
+        let game = Game::new();
 
         // Load sprites from string
         for _sprite in sprites.iter() {
@@ -48,7 +48,7 @@ impl AppState {
 
         let state = AppState {
             sprites: loaded_sprites,
-            board,
+            game,
             selected_tile: None,
             highlighted_tiles: Default::default(),
         };
@@ -162,10 +162,10 @@ impl event::EventHandler<ggez::GameError> for AppState {
             graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },));
 
             // Draw piece
-            if self.board.board.contains_key(position) {
+            if self.game.board.contains_key(position) {
                 let sprite = self
                     .sprites
-                    .get(self.board.board.get(position).as_ref().unwrap())
+                    .get(self.game.board.get(position).as_ref().unwrap())
                     .unwrap();
 
                 graphics::draw(
@@ -197,7 +197,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
 
         // Draw turn text
         let turn_text = graphics::Text::new(
-            graphics::TextFragment::from(format!("{:?}'s turn", self.board.active_color))
+            graphics::TextFragment::from(format!("{:?}'s turn", self.game.active_color))
                 .scale(graphics::PxScale { x: 30.0, y: 30.0 }),
         );
 
@@ -205,7 +205,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
             ctx,
             &turn_text,
             DrawParam::default()
-                .color(match self.board.active_color {
+                .color(match self.game.active_color {
                     Colour::White => Color::WHITE,
                     Colour::Black => Color::BLACK,
                 })
@@ -216,9 +216,9 @@ impl event::EventHandler<ggez::GameError> for AppState {
         );
 
         // Draw win text
-        if self.board.get_game_state() == GameState::CheckMate {
+        if self.game.get_game_state() == GameState::CheckMate {
             let win_text = graphics::Text::new(
-                graphics::TextFragment::from(format!("{:?} has won!", self.board.active_color))
+                graphics::TextFragment::from(format!("{:?} has won!", self.game.active_color))
                     .scale(graphics::PxScale { x: 60.0, y: 60.0 }),
             );
 
@@ -226,7 +226,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
                 ctx,
                 &win_text,
                 DrawParam::default()
-                    .color(match self.board.active_color {
+                    .color(match self.game.active_color {
                         Colour::White => Color::WHITE,
                         Colour::Black => Color::BLACK,
                     })
@@ -236,6 +236,25 @@ impl event::EventHandler<ggez::GameError> for AppState {
                     }),
             );
         }
+
+        // Promotion
+        let promotion_text = graphics::Text::new(
+            graphics::TextFragment::from("Choose piece to promote to:")
+                .scale(graphics::PxScale { x: 30.0, y: 30.0 }),
+        );
+
+        graphics::draw(
+            ctx,
+            &promotion_text,
+            DrawParam::default()
+                .color([0.0, 0.0, 0.0, 1.0].into())
+                .dest(ggez::mint::Point2 {
+                    x: (GRID_CELL_SIZE.0 * 8 + 10) as f32,
+                    y: (GRID_CELL_SIZE.0 * 2 + 10) as f32,
+                }),
+        );
+
+        draw_promotion_icons(self, ctx);
 
         // Render updated graphics
         graphics::present(ctx)?;
@@ -255,13 +274,13 @@ impl event::EventHandler<ggez::GameError> for AppState {
                     file: (x_tile + 1) as u8,
                     rank: (y_tile + 1) as u8,
                 };
-                if self.board.board.contains_key(position) {
-                    let piece = self.board.board.get(position).unwrap();
+                if self.game.board.contains_key(position) {
+                    let piece = self.game.board.get(position).unwrap();
 
                     // Select piece to move
-                    if get_colour_from_piece(piece.to_owned()) == self.board.active_color {
+                    if get_colour_from_piece(piece.to_owned()) == self.game.active_color {
                         self.selected_tile = Some(position.to_owned());
-                        let moves = self.board.get_possible_moves(position.to_string());
+                        let moves = self.game.get_possible_moves(position.to_string());
 
                         if moves.is_none() {
                             self.highlighted_tiles = Default::default();
@@ -285,9 +304,25 @@ impl event::EventHandler<ggez::GameError> for AppState {
                 }
             } else if x_tile < 10 && y_tile < 1 {
                 // Click reset button
-                self.board = Game::new();
+                self.game = Game::new();
                 self.selected_tile = None;
                 self.highlighted_tiles = Default::default();
+            } else if y_tile == 3 {
+                // Select promotion
+                let selected_piece = match x_tile {
+                    8 => Some(PieceType::Queen(self.game.active_color)),
+                    9 => Some(PieceType::Knight(self.game.active_color)),
+                    10 => Some(PieceType::Rook(self.game.active_color)),
+                    11 => Some(PieceType::Bishop(self.game.active_color)),
+                    _ => None,
+                };
+
+                if selected_piece.is_some() {
+                    self.game.promotion[match self.game.active_color {
+                        Colour::White => 0,
+                        Colour::Black => 1,
+                    }] = selected_piece.unwrap();
+                }
             }
         } else if button == MouseButton::Right {
             // Unselect piece
@@ -297,9 +332,81 @@ impl event::EventHandler<ggez::GameError> for AppState {
     }
 }
 
+fn draw_promotion_icons(state: &mut AppState, ctx: &mut Context) {
+    let selected_colour = state.game.active_color;
+    let selected_promotion = match selected_colour {
+        Colour::White => state.game.promotion[0],
+        Colour::Black => state.game.promotion[1],
+    };
+
+    draw_promotion_icon(
+        state,
+        ctx,
+        PieceType::Queen,
+        0,
+        selected_promotion == PieceType::Queen(selected_colour),
+    );
+    draw_promotion_icon(
+        state,
+        ctx,
+        PieceType::Knight,
+        1,
+        selected_promotion == PieceType::Knight(selected_colour),
+    );
+    draw_promotion_icon(
+        state,
+        ctx,
+        PieceType::Rook,
+        2,
+        selected_promotion == PieceType::Rook(selected_colour),
+    );
+    draw_promotion_icon(
+        state,
+        ctx,
+        PieceType::Bishop,
+        3,
+        selected_promotion == PieceType::Bishop(selected_colour),
+    );
+}
+
+fn draw_promotion_icon(
+    state: &mut AppState,
+    ctx: &mut Context,
+    piece: fn(eliasfl_chess::Color) -> PieceType,
+    x: i16,
+    selected: bool,
+) {
+    // Draw background to show that piece is selected
+    if selected {
+        let rectangle = graphics::Mesh::new_rectangle(
+            ctx,
+            graphics::DrawMode::fill(),
+            graphics::Rect::new_i32(
+                ((GRID_CELL_SIZE.0) * (8 + x)) as i32, // Remove one as api i 1-8 instead of 0-7
+                (GRID_CELL_SIZE.1 * 3) as i32,
+                GRID_CELL_SIZE.0 as i32,
+                GRID_CELL_SIZE.1 as i32,
+            ),
+            SELECTED_TILE,
+        )
+        .unwrap();
+        graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },));
+    }
+
+    // Draw piece
+    graphics::draw(
+        ctx,
+        state.sprites.get(&piece(state.game.active_color)).unwrap(),
+        (ggez::mint::Point2 {
+            x: ((GRID_CELL_SIZE.0) * (8 + x)) as f32, // Remove one as api i 1-8 instead of 0-7
+            y: (GRID_CELL_SIZE.1 * 3) as f32,
+        },),
+    );
+}
+
 fn move_to_tile(state: &mut AppState, position: &Position) {
     if state.highlighted_tiles.contains(position) {
-        state.board.make_move(
+        state.game.make_move(
             state.selected_tile.unwrap().to_string(),
             position.to_string(),
         );
