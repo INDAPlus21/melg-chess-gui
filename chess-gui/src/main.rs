@@ -13,8 +13,8 @@ const GRID_CELL_SIZE: (i16, i16) = (45, 45);
 
 /// Size of the application window.
 const SCREEN_SIZE: (f32, f32) = (
-    GRID_SIZE.0 as f32 * GRID_CELL_SIZE.0 as f32 + 300 as f32,
-    GRID_SIZE.1 as f32 * GRID_CELL_SIZE.1 as f32 + 300 as f32,
+    (GRID_SIZE.0 + 5) as f32 * GRID_CELL_SIZE.0 as f32,
+    GRID_SIZE.1 as f32 * GRID_CELL_SIZE.1 as f32,
 );
 
 // GUI Color representations
@@ -121,7 +121,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
     /// Draw window
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         // Clear interface with gray background colour
-        graphics::clear(ctx, [0.5, 0.5, 0.5, 1.0].into());
+        graphics::clear(ctx, Color::BLUE);
 
         // Draw tiles
         for i in 0..64 {
@@ -192,6 +192,26 @@ impl event::EventHandler<ggez::GameError> for AppState {
                 .dest(ggez::mint::Point2 {
                     x: (GRID_CELL_SIZE.0 * 8 + 10) as f32,
                     y: 10f32,
+                }),
+        );
+
+        // Draw turn text
+        let turn_text = graphics::Text::new(
+            graphics::TextFragment::from(format!("{:?}'s turn", self.board.active_color))
+                .scale(graphics::PxScale { x: 30.0, y: 30.0 }),
+        );
+
+        graphics::draw(
+            ctx,
+            &turn_text,
+            DrawParam::default()
+                .color(match self.board.active_color {
+                    Colour::White => Color::WHITE,
+                    Colour::Black => Color::BLACK,
+                })
+                .dest(ggez::mint::Point2 {
+                    x: (GRID_CELL_SIZE.0 * 8 + 10) as f32,
+                    y: (GRID_CELL_SIZE.1 + 10) as f32,
                 }),
         );
 
