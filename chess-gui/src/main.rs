@@ -175,7 +175,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
                 ),
                 colour,
             )?;
-            graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },));
+            graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;
 
             // Draw piece
             if self.game.board.contains_key(position) {
@@ -191,7 +191,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
                         x: ((position.file as i16 - 1) * GRID_CELL_SIZE.0) as f32, // Remove one as api i 1-8 instead of 0-7
                         y: ((position.rank as i16 - 1) * GRID_CELL_SIZE.1) as f32,
                     },),
-                );
+                )?;
             }
         }
 
@@ -209,7 +209,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
                     x: (GRID_CELL_SIZE.0 * 8 + 10) as f32,
                     y: 10f32,
                 }),
-        );
+        )?;
 
         // Draw turn text
         let turn_text = graphics::Text::new(
@@ -229,7 +229,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
                     x: (GRID_CELL_SIZE.0 * 8 + 10) as f32,
                     y: (GRID_CELL_SIZE.1 + 10) as f32,
                 }),
-        );
+        )?;
 
         // Promotion
         let promotion_text = graphics::Text::new(
@@ -246,7 +246,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
                     x: (GRID_CELL_SIZE.0 * 8 + 10) as f32,
                     y: (GRID_CELL_SIZE.0 * 2 + 10) as f32,
                 }),
-        );
+        )?;
 
         draw_promotion_icons(self, ctx);
 
@@ -269,7 +269,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
                         x: (GRID_CELL_SIZE.0 * 2) as f32,
                         y: (GRID_CELL_SIZE.1) as f32 * 3.5,
                     }),
-            );
+            )?;
         }
 
         // Time text
@@ -296,7 +296,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
                     x: (GRID_CELL_SIZE.0 * 8 + 10) as f32,
                     y: (GRID_CELL_SIZE.1 * 4 + 10) as f32,
                 }),
-        );
+        )?;
 
         // Draw time over text
         if self.white_time == 0.0 || self.black_time == 0.0 {
@@ -320,7 +320,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
                         x: 10.0,
                         y: (GRID_CELL_SIZE.1) as f32 * 3.5,
                     }),
-            );
+            )?;
         }
 
         // Render updated graphics
@@ -330,7 +330,7 @@ impl event::EventHandler<ggez::GameError> for AppState {
     }
 
     /// Update game on mouse click
-    fn mouse_button_up_event(&mut self, ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
+    fn mouse_button_up_event(&mut self, _ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
         if button == MouseButton::Left {
             let x_tile = (x / GRID_CELL_SIZE.0 as f32) as i32;
             let y_tile = (y / GRID_CELL_SIZE.1 as f32) as i32;
@@ -479,7 +479,7 @@ fn draw_promotion_icon(
             SELECTED_TILE,
         )
         .unwrap();
-        graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },));
+        graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },)).unwrap();
     }
 
     // Draw piece
@@ -490,20 +490,24 @@ fn draw_promotion_icon(
             x: ((GRID_CELL_SIZE.0) * (8 + x)) as f32, // Remove one as api i 1-8 instead of 0-7
             y: (GRID_CELL_SIZE.1 * 3) as f32,
         },),
-    );
+    )
+    .unwrap();
 }
 
 fn move_to_tile(state: &mut AppState, position: &Position) {
     // Prevent moving when time is over
-    if (state.white_time == 0.0 || state.black_time == 0.0) {
+    if state.white_time == 0.0 || state.black_time == 0.0 {
         return;
     }
 
     if state.highlighted_tiles.contains(position) {
-        state.game.make_move(
-            state.selected_tile.unwrap().to_string(),
-            position.to_string(),
-        );
+        state
+            .game
+            .make_move(
+                state.selected_tile.unwrap().to_string(),
+                position.to_string(),
+            )
+            .unwrap();
 
         // Deselect tile
         state.selected_tile = None;
