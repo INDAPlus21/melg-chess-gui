@@ -1,7 +1,7 @@
 use eliasfl_chess::{Color as Colour, Game, GameState, Piece as PieceType, Position};
-use ggez::event;
 use ggez::event::MouseButton;
 use ggez::graphics::{self, Color, DrawParam};
+use ggez::{event, timer};
 use ggez::{Context, GameResult};
 use std::collections::HashMap;
 use std::path;
@@ -29,6 +29,8 @@ struct AppState {
     game: Game,
     selected_tile: Option<Position>,
     highlighted_tiles: Vec<Position>,
+    white_time: f32,
+    black_time: f32,
 }
 
 impl AppState {
@@ -51,6 +53,8 @@ impl AppState {
             game,
             selected_tile: None,
             highlighted_tiles: Default::default(),
+            white_time: 10.0 * 60.0, // 10 minutes
+            black_time: 10.0 * 60.0,
         };
 
         Ok(state)
@@ -115,6 +119,18 @@ impl AppState {
 impl event::EventHandler<ggez::GameError> for AppState {
     /// For updating game logic, which front-end doesn't handle.
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
+        // Decrease time
+        if self.white_time > 0.0 && self.black_time > 0.0 {
+            match self.game.active_color {
+                Colour::White => self.white_time -= timer::delta(_ctx).as_secs_f32(),
+                Colour::Black => self.black_time -= timer::delta(_ctx).as_secs_f32(),
+            }
+
+            // Prevent negative time
+            self.white_time = self.white_time.max(0.0);
+            self.black_time = self.black_time.max(0.0);
+        }
+
         Ok(())
     }
 
@@ -215,6 +231,25 @@ impl event::EventHandler<ggez::GameError> for AppState {
                 }),
         );
 
+        // Promotion
+        let promotion_text = graphics::Text::new(
+            graphics::TextFragment::from("Choose piece to promote to:")
+                .scale(graphics::PxScale { x: 30.0, y: 30.0 }),
+        );
+
+        graphics::draw(
+            ctx,
+            &promotion_text,
+            DrawParam::default()
+                .color([0.0, 0.0, 0.0, 1.0].into())
+                .dest(ggez::mint::Point2 {
+                    x: (GRID_CELL_SIZE.0 * 8 + 10) as f32,
+                    y: (GRID_CELL_SIZE.0 * 2 + 10) as f32,
+                }),
+        );
+
+        draw_promotion_icons(self, ctx);
+
         // Draw win text
         if self.game.get_game_state() == GameState::CheckMate {
             let win_text = graphics::Text::new(
@@ -237,24 +272,56 @@ impl event::EventHandler<ggez::GameError> for AppState {
             );
         }
 
-        // Promotion
-        let promotion_text = graphics::Text::new(
-            graphics::TextFragment::from("Choose piece to promote to:")
-                .scale(graphics::PxScale { x: 30.0, y: 30.0 }),
+        // Time text
+        let turn_text = graphics::Text::new(
+            graphics::TextFragment::from(format!(
+                "Time left: {}",
+                parse_time(match self.game.active_color {
+                    Colour::White => self.white_time,
+                    Colour::Black => self.black_time,
+                })
+            ))
+            .scale(graphics::PxScale { x: 30.0, y: 30.0 }),
         );
 
         graphics::draw(
             ctx,
-            &promotion_text,
+            &turn_text,
             DrawParam::default()
-                .color([0.0, 0.0, 0.0, 1.0].into())
+                .color(match self.game.active_color {
+                    Colour::White => Color::WHITE,
+                    Colour::Black => Color::BLACK,
+                })
                 .dest(ggez::mint::Point2 {
                     x: (GRID_CELL_SIZE.0 * 8 + 10) as f32,
-                    y: (GRID_CELL_SIZE.0 * 2 + 10) as f32,
+                    y: (GRID_CELL_SIZE.1 * 4 + 10) as f32,
                 }),
         );
 
-        draw_promotion_icons(self, ctx);
+        // Draw time over text
+        if self.white_time == 0.0 || self.black_time == 0.0 {
+            let time_over_text = graphics::Text::new(
+                graphics::TextFragment::from(format!(
+                    "{:?} has won as the time ran out!",
+                    !self.game.active_color
+                ))
+                .scale(graphics::PxScale { x: 30.0, y: 30.0 }),
+            );
+
+            graphics::draw(
+                ctx,
+                &time_over_text,
+                DrawParam::default()
+                    .color(match self.game.active_color {
+                        Colour::White => Color::WHITE,
+                        Colour::Black => Color::BLACK,
+                    })
+                    .dest(ggez::mint::Point2 {
+                        x: 10.0,
+                        y: (GRID_CELL_SIZE.1) as f32 * 3.5,
+                    }),
+            );
+        }
 
         // Render updated graphics
         graphics::present(ctx)?;
@@ -307,6 +374,8 @@ impl event::EventHandler<ggez::GameError> for AppState {
                 self.game = Game::new();
                 self.selected_tile = None;
                 self.highlighted_tiles = Default::default();
+                self.white_time = 10.0 * 60.0;
+                self.black_time = 10.0 * 60.0;
             } else if y_tile == 3 {
                 // Select promotion
                 let selected_piece = match x_tile {
@@ -330,6 +399,26 @@ impl event::EventHandler<ggez::GameError> for AppState {
             self.highlighted_tiles = Default::default();
         }
     }
+}
+
+// Parses time from seconds to MM:SS:MSMS
+fn parse_time(time: f32) -> String {
+    let minutes = (time / 60.0).floor();
+    let seconds = (time - minutes * 60.0).floor();
+    let milliseconds = ((time - minutes * 60.0 - seconds) * 60.0).round();
+
+    // Add 0 if less than 10
+    let mut second_string = seconds.to_string();
+    if second_string.len() == 1 {
+        second_string = format!("0{}", second_string);
+    }
+
+    let mut millisecond_string = milliseconds.to_string();
+    if millisecond_string.len() == 1 {
+        millisecond_string = format!("0{}", millisecond_string);
+    }
+
+    return format!("{}:{}:{}", minutes, second_string, millisecond_string);
 }
 
 fn draw_promotion_icons(state: &mut AppState, ctx: &mut Context) {
@@ -405,6 +494,11 @@ fn draw_promotion_icon(
 }
 
 fn move_to_tile(state: &mut AppState, position: &Position) {
+    // Prevent moving when time is over
+    if (state.white_time == 0.0 || state.black_time == 0.0) {
+        return;
+    }
+
     if state.highlighted_tiles.contains(position) {
         state.game.make_move(
             state.selected_tile.unwrap().to_string(),
