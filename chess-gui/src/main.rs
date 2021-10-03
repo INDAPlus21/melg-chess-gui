@@ -123,30 +123,6 @@ impl event::EventHandler<ggez::GameError> for AppState {
         // Clear interface with gray background colour
         graphics::clear(ctx, [0.5, 0.5, 0.5, 1.0].into());
 
-        // Create text representation
-        let state_text = graphics::Text::new(
-            graphics::TextFragment::from(format!("Game is {:?}.", self.board.get_game_state()))
-                .scale(graphics::PxScale { x: 30.0, y: 30.0 }),
-        );
-
-        // get size of text
-        let text_dimensions = state_text.dimensions(ctx);
-        // create background rectangle with white coulouring
-        let background_box = graphics::Mesh::new_rectangle(
-            ctx,
-            DrawMode::fill(),
-            graphics::Rect::new(
-                (SCREEN_SIZE.0 - text_dimensions.x as f32) / 2f32 as f32 - 8.0,
-                (SCREEN_SIZE.0 - text_dimensions.y as f32) / 2f32 as f32,
-                text_dimensions.x as f32 + 16.0,
-                text_dimensions.y as f32,
-            ),
-            [1.0, 1.0, 1.0, 1.0].into(),
-        )?;
-
-        // Draw background
-        graphics::draw(ctx, &background_box, DrawParam::default());
-
         // Draw tiles
         for i in 0..64 {
             let position = &Position {
@@ -203,15 +179,19 @@ impl event::EventHandler<ggez::GameError> for AppState {
             }
         }
 
-        // draw text with dark gray colouring and center position
+        // Draw reset text
+        let reset_text = graphics::Text::new(
+            graphics::TextFragment::from("Reset").scale(graphics::PxScale { x: 30.0, y: 30.0 }),
+        );
+
         graphics::draw(
             ctx,
-            &state_text,
+            &reset_text,
             DrawParam::default()
                 .color([0.0, 0.0, 0.0, 1.0].into())
                 .dest(ggez::mint::Point2 {
-                    x: (SCREEN_SIZE.0 - text_dimensions.x as f32) / 2f32 as f32,
-                    y: (SCREEN_SIZE.0 - text_dimensions.y as f32) / 2f32 as f32,
+                    x: (GRID_CELL_SIZE.0 * 8 + 10) as f32,
+                    y: 10f32,
                 }),
         );
 
@@ -261,6 +241,11 @@ impl event::EventHandler<ggez::GameError> for AppState {
                     // Passive move
                     move_to_tile(self, position);
                 }
+            } else if x_tile < 10 && y_tile < 1 {
+                // Click reset button
+                self.board = Game::new();
+                self.selected_tile = None;
+                self.highlighted_tiles = Default::default();
             }
         } else if button == MouseButton::Right {
             // Unselect piece
