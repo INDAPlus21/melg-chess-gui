@@ -215,6 +215,28 @@ impl event::EventHandler<ggez::GameError> for AppState {
                 }),
         );
 
+        // Draw win text
+        if self.board.get_game_state() == GameState::CheckMate {
+            let win_text = graphics::Text::new(
+                graphics::TextFragment::from(format!("{:?} has won!", self.board.active_color))
+                    .scale(graphics::PxScale { x: 60.0, y: 60.0 }),
+            );
+
+            graphics::draw(
+                ctx,
+                &win_text,
+                DrawParam::default()
+                    .color(match self.board.active_color {
+                        Colour::White => Color::WHITE,
+                        Colour::Black => Color::BLACK,
+                    })
+                    .dest(ggez::mint::Point2 {
+                        x: (GRID_CELL_SIZE.0 * 2) as f32,
+                        y: (GRID_CELL_SIZE.1) as f32 * 3.5,
+                    }),
+            );
+        }
+
         // Render updated graphics
         graphics::present(ctx)?;
 
@@ -303,11 +325,11 @@ fn get_colour_from_piece(piece: PieceType) -> Colour {
 pub fn main() -> GameResult {
     let resource_dir = path::PathBuf::from("./resources");
 
-    let context_builder = ggez::ContextBuilder::new("schack", "eskil")
+    let context_builder = ggez::ContextBuilder::new("chess", "marcus")
         .add_resource_path(resource_dir) // Import image files to GGEZ
         .window_setup(
-            ggez::conf::WindowSetup::default().title("Schack"), // Set window title "Schack"
-                                                                //.icon("/icon.ico"), // Set application icon
+            ggez::conf::WindowSetup::default().title("Chess"), // Set window title "Schack"
+                                                               //.icon("/icon.ico"), // Set application icon
         )
         .window_mode(
             ggez::conf::WindowMode::default()
