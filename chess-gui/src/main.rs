@@ -533,8 +533,9 @@ pub fn main() -> GameResult {
     let context_builder = ggez::ContextBuilder::new("chess", "marcus")
         .add_resource_path(resource_dir) // Import image files to GGEZ
         .window_setup(
-            ggez::conf::WindowSetup::default().title("Chess"), // Set window title "Schack"
-                                                               //.icon("/icon.ico"), // Set application icon
+            ggez::conf::WindowSetup::default()
+                .title("Chess") // Set window title
+                .icon("/icon.png"), // Set application icon
         )
         .window_mode(
             ggez::conf::WindowMode::default()
